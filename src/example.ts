@@ -2,10 +2,13 @@ import { MiniApp } from "./app.js";
 
 const app = new MiniApp();
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
+  res.send("Hello");
+});
+
+app.get("/users/:id", (req, res) => {
   res.json({
-    method: req.method,
-    path: req.path,
+    id: req.params.id,
     query: req.query,
   });
 });

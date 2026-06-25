@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { MiniRequest } from "./request.js";
 import { MiniResponse } from "./response.js";
+import { matchPath } from "./router.js";
 import type { Handler, HttpMethod, Route } from "./types.js";
 
 export class MiniApp {
@@ -40,15 +41,22 @@ export class MiniApp {
     const req = new MiniRequest(rawReq);
     const res = new MiniResponse(rawRes);
 
-    const route = this.routes.find((route) => {
-      return route.method === req.method && route.path === req.path;
-    });
+    for (const route of this.routes) {
+      if (route.method !== req.method) {
+        continue;
+      }
 
-    if (!route) {
-      res.status(404).send("Not Found");
+      const matched = matchPath(route.path, req.path);
+
+      if (!matched) {
+        continue;
+      }
+
+      req.params = matched.params;
+      await route.handler(req, res);
       return;
     }
 
-    await route.handler(req, res);
+    res.status(404).send("Not Found");
   }
 }
