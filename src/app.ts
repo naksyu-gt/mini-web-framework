@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { parseBody } from "./body.js";
 import { MiniRequest } from "./request.js";
 import { MiniResponse } from "./response.js";
 import { matchPath } from "./router.js";
@@ -24,6 +25,22 @@ export class MiniApp {
     });
   }
 
+  put(path: string, handler: Handler): void {
+    this.routes.push({
+      method: "PUT",
+      path,
+      handler,
+    });
+  }
+
+  delete(path: string, handler: Handler): void {
+    this.routes.push({
+      method: "DELETE",
+      path,
+      handler,
+    });
+  }
+
   listen(port: number): void {
     const server = createServer((rawReq, rawRes) => {
       void this.handle(rawReq, rawRes);
@@ -41,22 +58,31 @@ export class MiniApp {
     const req = new MiniRequest(rawReq);
     const res = new MiniResponse(rawRes);
 
-    for (const route of this.routes) {
-      if (route.method !== req.method) {
-        continue;
+    try {
+      await parseBody(req);
+
+      for (const route of this.routes) {
+        if (route.method !== req.method) {
+          continue;
+        }
+
+        const matched = matchPath(route.path, req.path);
+
+        if (!matched) {
+          continue;
+        }
+
+        req.params = matched.params;
+        await route.handler(req, res);
+        return;
       }
 
-      const matched = matchPath(route.path, req.path);
-
-      if (!matched) {
-        continue;
-      }
-
-      req.params = matched.params;
-      await route.handler(req, res);
-      return;
+      res.status(404).send("Not Found");
+    } catch (error) {
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
     }
-
-    res.status(404).send("Not Found");
   }
 }

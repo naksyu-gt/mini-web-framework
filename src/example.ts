@@ -6,10 +6,10 @@ app.get("/", (_req, res) => {
   res.send("Hello");
 });
 
-app.get("/users/:id", (req, res) => {
-  res.json({
-    id: req.params.id,
-    query: req.query,
+app.post("/users", (req, res) => {
+  res.status(201).json({
+    message: "created",
+    body: req.body,
   });
 });
 
