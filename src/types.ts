@@ -23,6 +23,12 @@ export type Middleware = (
   next: NextFunction,
 ) => void | Promise<void>;
 
+export type ErrorHandler = (
+  error: unknown,
+  req: MiniRequest,
+  res: MiniResponse,
+) => void | Promise<void>;
+
 export type Route = {
   method: HttpMethod;
   path: string;

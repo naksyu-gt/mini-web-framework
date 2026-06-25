@@ -4,14 +4,31 @@ import { parseBody } from "./body.js";
 import { MiniRequest } from "./request.js";
 import { MiniResponse } from "./response.js";
 import { matchPath } from "./router.js";
-import type { Handler, HttpMethod, Middleware, Route } from "./types.js";
+import type {
+  ErrorHandler,
+  Handler,
+  HttpMethod,
+  Middleware,
+  Route,
+} from "./types.js";
 
 export class MiniApp {
   private routes: Route[] = [];
   private middlewares: Middleware[] = [];
 
+  private errorHandler: ErrorHandler = (error, _req, res) => {
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  };
+
   use(middleware: Middleware): void {
     this.middlewares.push(middleware);
+  }
+
+  onError(handler: ErrorHandler): void {
+    this.errorHandler = handler;
   }
 
   get(path: string, handler: Handler): void {
@@ -69,7 +86,9 @@ export class MiniApp {
       const matchedRoute = this.findRoute(req);
 
       if (!matchedRoute) {
-        res.status(404).send("Not Found");
+        res.status(404).json({
+          error: "Not Found",
+        });
         return;
       }
 
@@ -81,10 +100,7 @@ export class MiniApp {
         res.end();
       }
     } catch (error) {
-      res.status(500).json({
-        error: "Internal Server Error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      });
+      await this.errorHandler(error, req, res);
     }
   }
 

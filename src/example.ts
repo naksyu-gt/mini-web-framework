@@ -11,22 +11,20 @@ app.use(async (req, _res, next) => {
   console.log(`${req.method} ${req.path} - ${duration}ms`);
 });
 
+app.onError((error, _req, res) => {
+  console.error(error);
+
+  res.status(500).json({
+    error: "Something went wrong",
+  });
+});
+
 app.get("/", (_req, res) => {
   res.send("Hello");
 });
 
-app.get("/users/:id", (req, res) => {
-  res.json({
-    id: req.params.id,
-    query: req.query,
-  });
-});
-
-app.post("/users", (req, res) => {
-  res.status(201).json({
-    message: "created",
-    body: req.body,
-  });
+app.get("/error", () => {
+  throw new Error("Test error");
 });
 
 app.listen(3000);
