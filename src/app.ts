@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { MiniRequest } from "./request.js";
 import { MiniResponse } from "./response.js";
 import type { Handler, HttpMethod, Route } from "./types.js";
 
@@ -36,16 +37,11 @@ export class MiniApp {
     rawReq: IncomingMessage,
     rawRes: ServerResponse,
   ): Promise<void> {
-    const method = rawReq.method as HttpMethod;
-    const url = new URL(
-      rawReq.url ?? "/",
-      `http://${rawReq.headers.host ?? "localhost"}`,
-    );
-
+    const req = new MiniRequest(rawReq);
     const res = new MiniResponse(rawRes);
 
     const route = this.routes.find((route) => {
-      return route.method === method && route.path === url.pathname;
+      return route.method === req.method && route.path === req.path;
     });
 
     if (!route) {
@@ -53,6 +49,6 @@ export class MiniApp {
       return;
     }
 
-    await route.handler(rawReq, res);
+    await route.handler(req, res);
   }
 }

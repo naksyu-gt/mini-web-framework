@@ -1,3 +1,4 @@
+import type { MiniRequest } from "./request.js";
 import type { MiniResponse } from "./response.js";
 
 export type HttpMethod =
@@ -9,7 +10,10 @@ export type HttpMethod =
   | "OPTIONS"
   | "HEAD";
 
-export type Handler = (req: unknown, res: MiniResponse) => void | Promise<void>;
+export type Handler = (
+  req: MiniRequest,
+  res: MiniResponse,
+) => void | Promise<void>;
 
 export type Route = {
   method: HttpMethod;
