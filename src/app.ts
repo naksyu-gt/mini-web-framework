@@ -4,10 +4,15 @@ import { parseBody } from "./body.js";
 import { MiniRequest } from "./request.js";
 import { MiniResponse } from "./response.js";
 import { matchPath } from "./router.js";
-import type { Handler, HttpMethod, Route } from "./types.js";
+import type { Handler, HttpMethod, Middleware, Route } from "./types.js";
 
 export class MiniApp {
   private routes: Route[] = [];
+  private middlewares: Middleware[] = [];
+
+  use(middleware: Middleware): void {
+    this.middlewares.push(middleware);
+  }
 
   get(path: string, handler: Handler): void {
     this.routes.push({
@@ -61,28 +66,80 @@ export class MiniApp {
     try {
       await parseBody(req);
 
-      for (const route of this.routes) {
-        if (route.method !== req.method) {
-          continue;
-        }
+      const matchedRoute = this.findRoute(req);
 
-        const matched = matchPath(route.path, req.path);
-
-        if (!matched) {
-          continue;
-        }
-
-        req.params = matched.params;
-        await route.handler(req, res);
+      if (!matchedRoute) {
+        res.status(404).send("Not Found");
         return;
       }
 
-      res.status(404).send("Not Found");
+      req.params = matchedRoute.params;
+
+      await this.runMiddlewares(req, res, matchedRoute.route.handler);
+
+      if (!res.raw.writableEnded) {
+        res.end();
+      }
     } catch (error) {
       res.status(500).json({
         error: "Internal Server Error",
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
+  }
+
+  private findRoute(
+    req: MiniRequest,
+  ): { route: Route; params: Record<string, string> } | null {
+    for (const route of this.routes) {
+      if (route.method !== req.method) {
+        continue;
+      }
+
+      const matched = matchPath(route.path, req.path);
+
+      if (!matched) {
+        continue;
+      }
+
+      return {
+        route,
+        params: matched.params,
+      };
+    }
+
+    return null;
+  }
+
+  private async runMiddlewares(
+    req: MiniRequest,
+    res: MiniResponse,
+    handler: Handler,
+  ): Promise<void> {
+    const routeMiddleware: Middleware = async (req, res) => {
+      await handler(req, res);
+    };
+
+    const stack = [...this.middlewares, routeMiddleware];
+
+    let currentIndex = -1;
+
+    const dispatch = async (index: number): Promise<void> => {
+      if (index <= currentIndex) {
+        throw new Error("next() called multiple times");
+      }
+
+      currentIndex = index;
+
+      const middleware = stack[index];
+
+      if (!middleware) {
+        return;
+      }
+
+      await middleware(req, res, () => dispatch(index + 1));
+    };
+
+    await dispatch(0);
   }
 }

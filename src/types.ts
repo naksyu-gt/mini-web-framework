@@ -15,6 +15,14 @@ export type Handler = (
   res: MiniResponse,
 ) => void | Promise<void>;
 
+export type NextFunction = () => Promise<void>;
+
+export type Middleware = (
+  req: MiniRequest,
+  res: MiniResponse,
+  next: NextFunction,
+) => void | Promise<void>;
+
 export type Route = {
   method: HttpMethod;
   path: string;
